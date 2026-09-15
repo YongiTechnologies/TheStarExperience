@@ -32,7 +32,9 @@ import { INITIAL_MENU } from '@/data/menu';
 import { INITIAL_ORDERS } from '@/data/orders';
 
 // ─── Centralized API Configuration ──────────────────────────────────
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const API_BASE_URL = (
+  process.env.NEXT_PUBLIC_API_URL || 'https://backend-thestarexperience-ip37.onrender.com' || 'http://localhost:8000'
+).replace(/\/$/, '');
 const ADMIN_TOKEN_STORAGE_KEY = 'star_experience_admin_token';
 
 function getAdminAuthorizationHeader(): HeadersInit {
