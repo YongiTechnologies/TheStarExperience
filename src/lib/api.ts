@@ -25,12 +25,22 @@ import {
   ApiMenuItemResponse,
   ApiMenuCategoryResponse,
   ApiTableResponse,
+  ApiAdminOrderResponse,
+  ApiOrderResponse,
 } from '@/types';
 import { INITIAL_MENU } from '@/data/menu';
 import { INITIAL_ORDERS } from '@/data/orders';
 
 // ─── Centralized API Configuration ──────────────────────────────────
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/docs';
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000').replace(/\/$/, '');
+const ADMIN_TOKEN_STORAGE_KEY = 'star_experience_admin_token';
+
+function getAdminAuthorizationHeader(): HeadersInit {
+  if (typeof window === 'undefined') return {};
+
+  const token = localStorage.getItem(ADMIN_TOKEN_STORAGE_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 /**
  * Centralized fetch wrapper for all FastAPI calls.
@@ -46,6 +56,7 @@ async function apiFetch<T>(endpoint: string, options?: RequestInit): Promise<T> 
       signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
+        ...getAdminAuthorizationHeader(),
         ...options?.headers,
       },
     });
@@ -153,6 +164,61 @@ export async function getMenu(): Promise<MenuItem[]> {
   return apiItems.map((item) => mapApiMenuItem(item, categoryMap));
 }
 
+/** Authenticate a bar-admin user and persist the access token for admin API calls. */
+export async function loginAdmin(username: string, password: string): Promise<void> {
+  const body = new URLSearchParams({ username, password });
+  const response = await fetch(`${API_BASE_URL}/api/auth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body,
+  });
+
+  if (!response.ok) {
+    throw new ApiError('Invalid staff email or password.', response.status, await response.text());
+  }
+
+  const token = (await response.json()) as { access_token?: string };
+  if (!token.access_token) {
+    throw new ApiError('The backend did not return an access token.', 0);
+  }
+
+  localStorage.setItem(ADMIN_TOKEN_STORAGE_KEY, token.access_token);
+}
+
+/**
+ * Fetch menu inventory for the admin area.
+ * The backend currently exposes its menu list as public GET routes; its admin
+ * menu routes are POST-only creation endpoints.
+ */
+export async function getAdminMenu(): Promise<MenuItem[]> {
+  return getMenu();
+}
+
+function asOrderStatus(status: string | undefined): OrderStatusType {
+  return status === 'preparing' || status === 'ready' || status === 'completed' ? status : 'received';
+}
+
+function mapAdminOrder(order: ApiAdminOrderResponse): Order {
+  const items = order.items || order.order_items || [];
+  const total = order.total ?? order.total_amount ?? 0;
+
+  return {
+    id: String(order.id),
+    tableNumber: order.table_number ?? order.tableNumber ?? '',
+    customerName: order.customer_name ?? order.customerName ?? 'Guest',
+    phone: order.customer_phone ?? order.phone ?? '',
+    items,
+    subtotal: order.subtotal ?? total,
+    total,
+    status: asOrderStatus(order.status),
+    paymentStatus: order.payment_status === 'paid' || order.paymentStatus === 'paid' ? 'paid' : 'pending',
+    paymentMethod: order.payment_method === 'card' || order.paymentMethod === 'card' || order.payment_method === 'cash' || order.paymentMethod === 'cash' ? (order.payment_method ?? order.paymentMethod) as 'card' | 'cash' : 'momo',
+    createdAt: order.created_at ?? order.createdAt ?? new Date(0).toISOString(),
+    updatedAt: order.updated_at ?? order.updatedAt ?? new Date(0).toISOString(),
+    notes: order.notes,
+  };
+}
+
 /**
  * Fetch table information from the FastAPI backend.
  * Returns null if the table is not found (404).
@@ -204,6 +270,35 @@ function setStoredData<T>(key: string, data: T): void {
  * // TODO: Replace with POST/PUT `${API_BASE_URL}/api/menu`
  */
 export async function saveMenuItem(item: MenuItem): Promise<MenuItem> {
+  if (item.id.startsWith('custom-')) {
+    const categoryMap = await getCategoryMap();
+    const normalizedCategory = (value: string) => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const categoryId = Object.entries(categoryMap).find(
+      ([, name]) => normalizedCategory(name) === normalizedCategory(item.category)
+    )?.[0];
+
+    if (!categoryId) {
+      throw new ApiError(`No backend category matches “${item.category}”.`, 422);
+    }
+
+    const createdItem = await apiFetch<ApiMenuItemResponse>('/api/admin/menu/items', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: item.name,
+        description: item.description || null,
+        price: item.price,
+        is_available: item.available,
+        category_id: Number(categoryId),
+      }),
+    });
+
+    return mapApiMenuItem(createdItem, categoryMap);
+  }
+
+  // The backend currently provides a create route only; do not present a local edit as persisted.
+  throw new ApiError('Editing existing menu items is not available from the backend yet.', 405);
+
+  /*
   const current = getStoredData<MenuItem[]>(MENU_STORAGE_KEY, INITIAL_MENU);
   const exists = current.some((i) => i.id === item.id);
   const updated = exists
@@ -211,6 +306,7 @@ export async function saveMenuItem(item: MenuItem): Promise<MenuItem> {
     : [item, ...current];
   setStoredData(MENU_STORAGE_KEY, updated);
   return item;
+  */
 }
 
 /**
@@ -218,6 +314,9 @@ export async function saveMenuItem(item: MenuItem): Promise<MenuItem> {
  * // TODO: Replace with PATCH `${API_BASE_URL}/api/menu/{id}/availability`
  */
 export async function toggleItemAvailability(id: string, available: boolean): Promise<MenuItem | null> {
+  throw new ApiError('Updating menu availability is not available from the backend yet.', 405);
+
+  /*
   const current = getStoredData<MenuItem[]>(MENU_STORAGE_KEY, INITIAL_MENU);
   let updatedItem: MenuItem | null = null;
   const updated = current.map((item) => {
@@ -229,6 +328,7 @@ export async function toggleItemAvailability(id: string, available: boolean): Pr
   });
   setStoredData(MENU_STORAGE_KEY, updated);
   return updatedItem;
+  */
 }
 
 /**
@@ -236,19 +336,22 @@ export async function toggleItemAvailability(id: string, available: boolean): Pr
  * // TODO: Replace with DELETE `${API_BASE_URL}/api/menu/{id}`
  */
 export async function deleteMenuItem(id: string): Promise<boolean> {
+  throw new ApiError('Deleting menu items is not available from the backend yet.', 405);
+
+  /*
   const current = getStoredData<MenuItem[]>(MENU_STORAGE_KEY, INITIAL_MENU);
   const updated = current.filter((item) => item.id !== id);
   setStoredData(MENU_STORAGE_KEY, updated);
   return true;
+  */
 }
 
 /**
- * Fetch all orders (Bar Admin)
- * // TODO: Replace with fetch(`${API_BASE_URL}/api/orders`)
+ * Fetch all orders for the bar-admin dashboard.
  */
 export async function getOrders(): Promise<Order[]> {
-  await new Promise((res) => setTimeout(res, 50));
-  return getStoredData<Order[]>(ORDERS_STORAGE_KEY, INITIAL_ORDERS);
+  const orders = await apiFetch<ApiAdminOrderResponse[]>('/api/admin/orders');
+  return orders.map(mapAdminOrder);
 }
 
 /**
@@ -265,16 +368,39 @@ export async function getOrder(id: string): Promise<Order | null> {
  * // TODO: Replace with POST `${API_BASE_URL}/api/orders`
  */
 export async function createOrder(orderData: Omit<Order, 'createdAt' | 'updatedAt'>): Promise<Order> {
-  const now = new Date().toISOString();
-  const newOrder: Order = {
+  const tableId = Number(orderData.tableNumber);
+  if (!Number.isInteger(tableId)) {
+    throw new ApiError('A valid table ID is required to place an order.', 422);
+  }
+
+  const items = orderData.items.map((item) => ({
+    menu_item_id: Number(item.id),
+    quantity: item.quantity,
+  }));
+
+  if (items.some((item) => !Number.isInteger(item.menu_item_id))) {
+    throw new ApiError('Orders can only contain menu items loaded from the backend.', 422);
+  }
+
+  const createdOrder = await apiFetch<ApiOrderResponse>('/api/orders', {
+    method: 'POST',
+    body: JSON.stringify({
+      table_id: tableId,
+      customer_name: orderData.customerName,
+      customer_phone: orderData.phone,
+      items,
+    }),
+  });
+
+  return {
     ...orderData,
-    createdAt: now,
-    updatedAt: now,
+    id: String(createdOrder.id),
+    total: createdOrder.total_amount,
+    subtotal: createdOrder.total_amount,
+    status: asOrderStatus(createdOrder.status),
+    createdAt: createdOrder.created_at ?? new Date().toISOString(),
+    updatedAt: createdOrder.updated_at ?? new Date().toISOString(),
   };
-  const current = getStoredData<Order[]>(ORDERS_STORAGE_KEY, INITIAL_ORDERS);
-  const updated = [newOrder, ...current];
-  setStoredData(ORDERS_STORAGE_KEY, updated);
-  return newOrder;
 }
 
 /**
@@ -282,19 +408,10 @@ export async function createOrder(orderData: Omit<Order, 'createdAt' | 'updatedA
  * // TODO: Replace with PATCH `${API_BASE_URL}/api/orders/{id}/status`
  */
 export async function updateOrderStatus(id: string, status: OrderStatusType): Promise<Order | null> {
-  const current = getStoredData<Order[]>(ORDERS_STORAGE_KEY, INITIAL_ORDERS);
-  let updatedOrder: Order | null = null;
-  const updated = current.map((order) => {
-    if (order.id === id) {
-      updatedOrder = {
-        ...order,
-        status,
-        updatedAt: new Date().toISOString(),
-      };
-      return updatedOrder;
-    }
-    return order;
+  const updatedOrder = await apiFetch<ApiAdminOrderResponse>(`/api/admin/orders/${id}/status`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
   });
-  setStoredData(ORDERS_STORAGE_KEY, updated);
-  return updatedOrder;
+
+  return mapAdminOrder(updatedOrder);
 }

@@ -75,7 +75,7 @@ export default function PaymentPage() {
             ];
 
       // Place order in shared state
-      await placeNewOrder({
+      const createdOrder = await placeNewOrder({
         id: currentOrderId,
         tableNumber: tableNumber || 12,
         customerName: customerInfo.name || 'Kofi Appiah',
@@ -94,7 +94,7 @@ export default function PaymentPage() {
       clearCart();
 
       // Redirect to order tracking page
-      router.push(`/order/${currentOrderId}`);
+      router.push(`/order/${createdOrder.id}`);
     }, 2000);
   };
 

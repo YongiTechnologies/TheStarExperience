@@ -5,34 +5,26 @@ import { AdminHeader } from '@/components/admin/AdminHeader';
 import { AdminSidebar } from '@/components/admin/AdminSidebar';
 import { MenuTable } from '@/components/admin/MenuTable';
 import { MenuItem } from '@/types';
-import { getMenu, saveMenuItem, deleteMenuItem, toggleItemAvailability } from '@/lib/api';
-import { INITIAL_MENU } from '@/data/menu';
-
-function getInitialMenu(): MenuItem[] {
-  if (typeof window === 'undefined') return INITIAL_MENU;
-  try {
-    const raw = localStorage.getItem('star_experience_menu');
-    if (raw) return JSON.parse(raw);
-    return INITIAL_MENU;
-  } catch {
-    return INITIAL_MENU;
-  }
-}
+import { getAdminMenu, saveMenuItem, deleteMenuItem, toggleItemAvailability } from '@/lib/api';
 
 export default function AdminMenuPage() {
-  const [items, setItems] = useState<MenuItem[]>(getInitialMenu);
+  const [items, setItems] = useState<MenuItem[]>([]);
 
   useEffect(() => {
-    const handleUpdate = () => {
-      getMenu().then(setItems);
+    const loadMenu = () => {
+      getAdminMenu().then(setItems).catch((error) => {
+        console.error('Failed fetching admin menu:', error);
+      });
     };
 
-    window.addEventListener('storage_star_experience_menu', handleUpdate);
-    window.addEventListener('storage', handleUpdate);
+    loadMenu();
+
+    window.addEventListener('storage_star_experience_menu', loadMenu);
+    window.addEventListener('storage', loadMenu);
 
     return () => {
-      window.removeEventListener('storage_star_experience_menu', handleUpdate);
-      window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener('storage_star_experience_menu', loadMenu);
+      window.removeEventListener('storage', loadMenu);
     };
   }, []);
 
@@ -44,9 +36,8 @@ export default function AdminMenuPage() {
   };
 
   const handleSaveItem = async (item: MenuItem) => {
-    await saveMenuItem(item);
-    const updated = await getMenu();
-    setItems(updated);
+    const savedItem = await saveMenuItem(item);
+    setItems((previous) => [savedItem, ...previous.filter((existing) => existing.id !== savedItem.id)]);
   };
 
   const handleDeleteItem = async (id: string) => {

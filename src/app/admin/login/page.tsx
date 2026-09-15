@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Shield, Lock, Mail, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { ApiError, loginAdmin } from '@/lib/api';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setError('Please enter your staff email and password');
@@ -24,13 +25,14 @@ export default function AdminLoginPage() {
     setIsLoading(true);
     setError('');
 
-    // Mock authentication: accept any credentials or demo ones
-    setTimeout(() => {
-      // In production with FastAPI:
-      // const res = await fetch('/api/admin/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    try {
+      await loginAdmin(email, password);
       setIsLoading(false);
       router.push('/admin/dashboard');
-    }, 600);
+    } catch (err) {
+      setIsLoading(false);
+      setError(err instanceof ApiError ? err.message : 'Unable to sign in. Please try again.');
+    }
   };
 
   const handleDemoFill = () => {
@@ -74,9 +76,9 @@ export default function AdminLoginPage() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <Input
-              label="Staff Email"
-              type="email"
-              placeholder="staff@thestar.republicbar.com"
+              label="Staff Email or Username"
+              type="text"
+              placeholder="staff@thestar.republicbar.com or staff.username"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               leftIcon={<Mail className="w-4 h-4" />}
@@ -118,7 +120,7 @@ export default function AdminLoginPage() {
               <span>Fill Demo Credentials</span>
             </button>
             <p className="text-[10px] text-zinc-500 mt-1">
-              Simulation mode enabled for Kwesi Dain event review
+              Use your bar staff credentials to access the dashboard
             </p>
           </div>
         </div>

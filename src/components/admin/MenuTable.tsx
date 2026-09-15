@@ -11,7 +11,7 @@ import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Search } from 'lucide-react
 interface MenuTableProps {
   items: MenuItem[];
   onToggleAvailability: (id: string, available: boolean) => void;
-  onSaveItem: (item: MenuItem) => void;
+  onSaveItem: (item: MenuItem) => Promise<void>;
   onDeleteItem: (id: string) => void;
 }
 
@@ -33,6 +33,7 @@ export function MenuTable({
   const [formCategory, setFormCategory] = useState<'food' | 'drinks' | 'cocktails' | 'beer' | 'soft-drinks'>('food');
   const [formBadge, setFormBadge] = useState('');
   const [formAvailable, setFormAvailable] = useState(true);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const openAddModal = () => {
     setEditingItem(null);
@@ -42,6 +43,7 @@ export function MenuTable({
     setFormCategory('food');
     setFormBadge('');
     setFormAvailable(true);
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -53,10 +55,11 @@ export function MenuTable({
     setFormCategory(item.category);
     setFormBadge(item.badge || '');
     setFormAvailable(item.available);
+    setFormError(null);
     setIsModalOpen(true);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim() || !formPrice) return;
 
@@ -73,8 +76,12 @@ export function MenuTable({
       available: formAvailable,
     };
 
-    onSaveItem(itemToSave);
-    setIsModalOpen(false);
+    try {
+      await onSaveItem(itemToSave);
+      setIsModalOpen(false);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Unable to save this menu item.');
+    }
   };
 
   const filteredItems = items.filter((item) => {
@@ -316,6 +323,10 @@ export function MenuTable({
               Available immediately on menu
             </label>
           </div>
+
+          {formError && (
+            <p className="text-xs text-star-red font-medium">{formError}</p>
+          )}
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#262626]">
             <Button

@@ -78,3 +78,37 @@ export interface ApiTableResponse {
   table_number: string;
   capacity: number | null;
 }
+
+/** Admin order payload as returned by the FastAPI dashboard endpoint. */
+export interface ApiAdminOrderResponse {
+  id: number | string;
+  table_number?: number | string;
+  tableNumber?: number | string;
+  customer_name?: string;
+  customerName?: string;
+  phone?: string;
+  customer_phone?: string;
+  items?: OrderItem[];
+  order_items?: OrderItem[];
+  subtotal?: number;
+  total?: number;
+  total_amount?: number;
+  status?: string;
+  payment_status?: string;
+  paymentStatus?: string;
+  payment_method?: string;
+  paymentMethod?: string;
+  created_at?: string;
+  createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
+  notes?: string;
+}
+
+export interface ApiOrderResponse {
+  id: number;
+  status: string;
+  total_amount: number;
+  created_at: string | null;
+  updated_at: string | null;
+}

@@ -3,7 +3,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Order, OrderStatusType } from '@/types';
 import { getOrders, createOrder, updateOrderStatus } from '@/lib/api';
-import { INITIAL_ORDERS } from '@/data/orders';
 
 interface OrderContextType {
   orders: Order[];
@@ -46,19 +45,8 @@ function playChimeSound() {
   }
 }
 
-function getInitialOrders(): Order[] {
-  if (typeof window === 'undefined') return INITIAL_ORDERS;
-  try {
-    const raw = localStorage.getItem('star_experience_orders');
-    if (raw) return JSON.parse(raw);
-    return INITIAL_ORDERS;
-  } catch {
-    return INITIAL_ORDERS;
-  }
-}
-
 export function OrderProvider({ children }: { children: React.ReactNode }) {
-  const [orders, setOrders] = useState<Order[]>(getInitialOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [hasNewOrderAlert, setHasNewOrderAlert] = useState<boolean>(false);
 
   const refreshOrders = useCallback(async () => {
@@ -71,6 +59,11 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    void Promise.resolve().then(refreshOrders);
+    const refreshInterval = window.setInterval(() => {
+      void refreshOrders();
+    }, 10000);
+
     // Listen to custom cross-component storage events in same tab
     const handleStorageChange = () => {
       refreshOrders();
@@ -89,6 +82,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('storage', handleWindowStorage);
 
     return () => {
+      window.clearInterval(refreshInterval);
       window.removeEventListener('storage_star_experience_orders', handleStorageChange);
       window.removeEventListener('storage', handleWindowStorage);
     };
