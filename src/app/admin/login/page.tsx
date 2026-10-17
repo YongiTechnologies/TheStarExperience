@@ -1,24 +1,30 @@
 'use client';
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Shield, Lock, Mail, ArrowRight } from 'lucide-react';
+import { Lock, User, ArrowRight } from 'lucide-react';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
-import { ApiError, loginAdmin } from '@/lib/api';
+import { ApiError, hasValidAdminSession, loginAdmin } from '@/lib/api';
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter();
+  const sessionExpired = useSearchParams().get('expired') === '1';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Already signed in (e.g. reopened the tab): go straight to the board.
+  useEffect(() => {
+    if (hasValidAdminSession()) router.replace('/admin/dashboard');
+  }, [router]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
-      setError('Please enter your staff email and password');
+      setError('Please enter your username and password');
       return;
     }
 
@@ -27,18 +33,11 @@ export default function AdminLoginPage() {
 
     try {
       await loginAdmin(email, password);
-      setIsLoading(false);
-      router.push('/admin/dashboard');
+      router.replace('/admin/dashboard');
     } catch (err) {
       setIsLoading(false);
       setError(err instanceof ApiError ? err.message : 'Unable to sign in. Please try again.');
     }
-  };
-
-  const handleDemoFill = () => {
-    setEmail('staff@thestar.republicbar.com');
-    setPassword('republic2026');
-    setError('');
   };
 
   return (
@@ -49,10 +48,10 @@ export default function AdminLoginPage() {
       {/* Top Bar */}
       <header className="flex items-center justify-between py-2">
         <Link
-          href="/"
+          href="/order"
           className="flex items-center gap-2 text-xs text-star-muted hover:text-white transition-colors"
         >
-          <span>← Event Landing Page</span>
+          <span>← Guest menu</span>
         </Link>
         <span className="text-[11px] font-mono text-zinc-500">Staff Portal v1.0</span>
       </header>
@@ -74,14 +73,22 @@ export default function AdminLoginPage() {
             </p>
           </div>
 
+          {sessionExpired && !error && (
+            <p className="mb-4 rounded-xl border border-star-gold/30 bg-star-gold/10 px-3 py-2.5 text-xs text-star-gold" role="status">
+              Your session ended. Sign in again to keep receiving orders.
+            </p>
+          )}
+
           <form onSubmit={handleLogin} className="space-y-4">
             <Input
-              label="Staff Email or Username"
+              label="Username"
               type="text"
-              placeholder="staff@thestar.republicbar.com or staff.username"
+              placeholder="e.g. admin"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              leftIcon={<Mail className="w-4 h-4" />}
+              leftIcon={<User className="w-4 h-4" />}
+              autoComplete="username"
+              autoCapitalize="none"
               autoFocus
             />
 
@@ -92,6 +99,7 @@ export default function AdminLoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               leftIcon={<Lock className="w-4 h-4" />}
+              autoComplete="current-password"
             />
 
             {error && (
@@ -110,19 +118,6 @@ export default function AdminLoginPage() {
             </Button>
           </form>
 
-          {/* Quick Demo Autofill */}
-          <div className="mt-5 pt-4 border-t border-[#222222] text-center">
-            <button
-              type="button"
-              onClick={handleDemoFill}
-              className="text-xs text-star-gold hover:underline font-semibold cursor-pointer inline-flex items-center gap-1"
-            >
-              <span>Fill Demo Credentials</span>
-            </button>
-            <p className="text-[10px] text-zinc-500 mt-1">
-              Use your bar staff credentials to access the dashboard
-            </p>
-          </div>
         </div>
       </main>
 
@@ -131,5 +126,13 @@ export default function AdminLoginPage() {
         The Republic Bar & Grill • Osu, Accra, Ghana
       </footer>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#0A0A0A]" />}>
+      <AdminLoginForm />
+    </Suspense>
   );
 }

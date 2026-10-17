@@ -20,6 +20,11 @@ interface CartContextType {
   setOrderNotes: (notes: string) => void;
   isDrawerOpen: boolean;
   setIsDrawerOpen: (open: boolean) => void;
+  /**
+   * Refresh cart lines from the latest menu (names, prices, photos) and drop
+   * anything sold out or removed. Returns the names of dropped items.
+   */
+  syncWithMenu: (menu: MenuItem[]) => string[];
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -51,15 +56,16 @@ function getInitialString(key: string, fallback: string): string {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
+  // No default table: an unknown table must be asked for, never guessed.
   const [tableNumber, setTableNumberState] = useState<string>(() =>
-    getInitialString(STORAGE_TABLE_KEY, '12')
+    getInitialString(STORAGE_TABLE_KEY, '')
   );
 
   const [customerInfo, setCustomerInfoState] = useState<CustomerInfo>(() =>
     getInitialStorage<CustomerInfo>(STORAGE_CUSTOMER_KEY, {
       name: '',
       phone: '',
-      tableNumber: '12',
+      tableNumber: '',
     })
   );
 
@@ -107,14 +113,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const addItem = (item: MenuItem, quantity = 1) => {
     setItems((prev) => {
-      const existingIndex = prev.findIndex((ci) => ci.item.id === item.id);
-      let updated: CartItem[];
-      if (existingIndex > -1) {
-        updated = [...prev];
-        updated[existingIndex].quantity += quantity;
-      } else {
-        updated = [...prev, { item, quantity }];
-      }
+      const exists = prev.some((ci) => ci.item.id === item.id);
+      const updated: CartItem[] = exists
+        ? prev.map((ci) => (ci.item.id === item.id ? { ...ci, quantity: ci.quantity + quantity } : ci))
+        : [...prev, { item, quantity }];
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_CART_KEY, JSON.stringify(updated));
       }
@@ -153,6 +155,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setOrderNotes('');
   };
 
+  const syncWithMenu = useCallback(
+    (menu: MenuItem[]): string[] => {
+      const latest = new Map(menu.map((menuItem) => [menuItem.id, menuItem]));
+      const dropped = items.filter((ci) => !latest.get(ci.item.id)?.available).map((ci) => ci.item.name);
+      const synced = items
+        .filter((ci) => latest.get(ci.item.id)?.available)
+        .map((ci) => ({ ...ci, item: latest.get(ci.item.id) as MenuItem }));
+      const changed =
+        dropped.length > 0 || synced.some((ci, i) => JSON.stringify(ci.item) !== JSON.stringify(items[i].item));
+      if (changed) {
+        setItems(synced);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem(STORAGE_CART_KEY, JSON.stringify(synced));
+        }
+      }
+      return dropped;
+    },
+    [items]
+  );
+
   const getItemQuantity = (itemId: string): number => {
     const found = items.find((ci) => ci.item.id === itemId);
     return found ? found.quantity : 0;
@@ -180,6 +202,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         setOrderNotes,
         isDrawerOpen,
         setIsDrawerOpen,
+        syncWithMenu,
       }}
     >
       {children}

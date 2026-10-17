@@ -1,30 +1,59 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { usePathname } from 'next/navigation';
 import { Order, OrderStatusType } from '@/types';
-import { getOrders, createOrder, updateOrderStatus } from '@/lib/api';
+import {
+  ApiError,
+  SESSION_EXPIRED_EVENT,
+  describeApiError,
+  getOrders,
+  hasExpiredAdminSession,
+  hasValidAdminSession,
+  updateOrderStatus,
+} from '@/lib/api';
+
+const POLL_INTERVAL_MS = 10000;
 
 interface OrderContextType {
   orders: Order[];
+  /** True once the staff order list has been fetched at least once. */
+  ordersLoaded: boolean;
   refreshOrders: () => Promise<void>;
-  placeNewOrder: (orderData: Omit<Order, 'createdAt' | 'updatedAt'>) => Promise<Order>;
-  changeOrderStatus: (id: string, status: OrderStatusType) => Promise<Order | null>;
-  getOrderById: (id: string) => Order | undefined;
+  /** Move an order to a new status; returns false (and sets actionError) on failure. */
+  changeOrderStatus: (id: string, status: OrderStatusType) => Promise<boolean>;
   hasNewOrderAlert: boolean;
   dismissNewOrderAlert: () => void;
-  simulateIncomingOrder: () => Promise<void>;
+  /** Last failed staff action or refresh, shown to staff until dismissed. */
+  actionError: string | null;
+  dismissActionError: () => void;
+  /** Browsers keep audio muted until someone interacts with the page. */
+  soundEnabled: boolean;
+  enableSound: () => void;
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
 
-function playChimeSound() {
-  if (typeof window === 'undefined') return;
-  try {
-    const AudioContext =
+// One shared AudioContext for the new-order chime. Browsers start it suspended
+// until the user interacts with the page, so it is resumed on the first tap.
+let chimeContext: AudioContext | null = null;
+
+function getChimeContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (!chimeContext) {
+    const AudioContextClass =
       window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
+      (window as unknown as { webkitAudioContext?: typeof window.AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return null;
+    chimeContext = new AudioContextClass();
+  }
+  return chimeContext;
+}
+
+function playChimeSound() {
+  try {
+    const ctx = getChimeContext();
+    if (!ctx || ctx.state !== 'running') return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
@@ -45,113 +74,104 @@ function playChimeSound() {
   }
 }
 
-export function OrderProvider({ children }: { children: React.ReactNode }) {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [hasNewOrderAlert, setHasNewOrderAlert] = useState<boolean>(false);
+function isStaffPage(pathname: string) {
+  return pathname.startsWith('/admin') && pathname !== '/admin/login';
+}
 
+export function OrderProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoaded, setOrdersLoaded] = useState<boolean>(false);
+  const [hasNewOrderAlert, setHasNewOrderAlert] = useState<boolean>(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(false);
+  // Order IDs from the previous refresh; null until the first load so the
+  // initial board doesn't chime for orders that were already there.
+  const knownOrderIds = useRef<Set<string> | null>(null);
+
+  // Depends on pathname: the provider lives in the root layout and survives the
+  // client-side jump from /admin/login to the dashboard, so a stale path here
+  // would stop orders loading after sign-in.
   const refreshOrders = useCallback(async () => {
+    if (!isStaffPage(pathname)) return;
+    if (!hasValidAdminSession()) {
+      // The token ran out while the board was open: hand over to AdminGuard,
+      // which sends staff to sign in again instead of leaving a frozen board.
+      if (hasExpiredAdminSession()) window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
+      return;
+    }
+
     try {
       const data = await getOrders();
-      setOrders(data);
-    } catch (err) {
-      console.error('Failed fetching orders:', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    void Promise.resolve().then(refreshOrders);
-    const refreshInterval = window.setInterval(() => {
-      void refreshOrders();
-    }, 10000);
-
-    // Listen to custom cross-component storage events in same tab
-    const handleStorageChange = () => {
-      refreshOrders();
-    };
-
-    // Listen to browser storage events across different tabs
-    const handleWindowStorage = (e: StorageEvent) => {
-      if (e.key === 'star_experience_orders') {
-        refreshOrders();
+      const previous = knownOrderIds.current;
+      if (previous && data.some((order) => !previous.has(order.id))) {
         setHasNewOrderAlert(true);
         playChimeSound();
       }
-    };
+      knownOrderIds.current = new Set(data.map((order) => order.id));
+      setOrders(data);
+      setOrdersLoaded(true);
+    } catch (err) {
+      // An expired session is handled by AdminGuard, which sends staff to sign in.
+      if (err instanceof ApiError && err.status === 401) return;
+      setActionError(`Couldn’t refresh orders: ${describeApiError(err)}`);
+    }
+  }, [pathname]);
 
-    window.addEventListener('storage_star_experience_orders', handleStorageChange);
-    window.addEventListener('storage', handleWindowStorage);
+  useEffect(() => {
+    if (!isStaffPage(pathname)) return;
+    void Promise.resolve().then(refreshOrders);
+    const refreshInterval = window.setInterval(() => void refreshOrders(), POLL_INTERVAL_MS);
+    return () => window.clearInterval(refreshInterval);
+  }, [pathname, refreshOrders]);
 
+  const enableSound = useCallback(() => {
+    const ctx = getChimeContext();
+    if (!ctx) return;
+    ctx
+      .resume()
+      .then(() => setSoundEnabled(ctx.state === 'running'))
+      .catch(() => setSoundEnabled(false));
+  }, []);
+
+  // Any tap or key press on a staff page unlocks the chime.
+  useEffect(() => {
+    if (!isStaffPage(pathname) || soundEnabled) return;
+    window.addEventListener('pointerdown', enableSound);
+    window.addEventListener('keydown', enableSound);
     return () => {
-      window.clearInterval(refreshInterval);
-      window.removeEventListener('storage_star_experience_orders', handleStorageChange);
-      window.removeEventListener('storage', handleWindowStorage);
+      window.removeEventListener('pointerdown', enableSound);
+      window.removeEventListener('keydown', enableSound);
     };
-  }, [refreshOrders]);
+  }, [pathname, soundEnabled, enableSound]);
 
-  const placeNewOrder = async (
-    orderData: Omit<Order, 'createdAt' | 'updatedAt'>
-  ): Promise<Order> => {
-    const newOrder = await createOrder(orderData);
-    await refreshOrders();
-    setHasNewOrderAlert(true);
-    playChimeSound();
-    return newOrder;
-  };
-
-  const changeOrderStatus = async (
-    id: string,
-    status: OrderStatusType
-  ): Promise<Order | null> => {
-    const updated = await updateOrderStatus(id, status);
-    await refreshOrders();
-    return updated;
-  };
-
-  const getOrderById = (id: string): Order | undefined => {
-    return orders.find((o) => o.id.toLowerCase() === id.toLowerCase());
-  };
-
-  const dismissNewOrderAlert = () => {
-    setHasNewOrderAlert(false);
-  };
-
-  const simulateIncomingOrder = async () => {
-    const randomTables = [3, 8, 12, 14, 21, 9];
-    const randomNames = ['Kweku Baah', 'Efua Darko', 'Sena Mensah', 'Yaw Osei', 'Naa Koshie'];
-    const randomTable = randomTables[Math.floor(Math.random() * randomTables.length)];
-    const randomName = randomNames[Math.floor(Math.random() * randomNames.length)];
-    const orderId = Math.floor(1050 + Math.random() * 8900).toString();
-
-    await placeNewOrder({
-      id: orderId,
-      tableNumber: randomTable,
-      customerName: randomName,
-      phone: '024' + Math.floor(1000000 + Math.random() * 9000000),
-      items: [
-        { id: 'beer-001', name: 'Club Beer (Large)', price: 25, quantity: 2 },
-        { id: 'food-007', name: 'Beef Suya Skewers', price: 55, quantity: 1 },
-      ],
-      subtotal: 105,
-      total: 105,
-      status: 'received',
-      paymentStatus: 'paid',
-      paymentMethod: 'momo',
-      momoNetwork: 'mtn',
-      notes: 'Please bring bottle opener',
-    });
-  };
+  const changeOrderStatus = useCallback(
+    async (id: string, status: OrderStatusType): Promise<boolean> => {
+      try {
+        const updated = await updateOrderStatus(id, status);
+        setOrders((current) => current.map((order) => (order.id === id ? updated : order)));
+        return true;
+      } catch (err) {
+        setActionError(`Couldn’t update order #${id}: ${describeApiError(err)}`);
+        return false;
+      }
+    },
+    []
+  );
 
   return (
     <OrderContext.Provider
       value={{
         orders,
+        ordersLoaded,
         refreshOrders,
-        placeNewOrder,
         changeOrderStatus,
-        getOrderById,
         hasNewOrderAlert,
-        dismissNewOrderAlert,
-        simulateIncomingOrder,
+        dismissNewOrderAlert: () => setHasNewOrderAlert(false),
+        actionError,
+        dismissActionError: () => setActionError(null),
+        soundEnabled,
+        enableSound,
       }}
     >
       {children}

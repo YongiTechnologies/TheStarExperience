@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MenuItem } from '@/types';
+import { ItemCategory, MenuItem } from '@/types';
 import { formatCurrency } from '@/lib/utils';
+import { describeApiError } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
@@ -11,7 +12,7 @@ import { Plus, Edit2, Trash2, CheckCircle2, XCircle, Search } from 'lucide-react
 interface MenuTableProps {
   items: MenuItem[];
   onToggleAvailability: (id: string, available: boolean) => void;
-  onSaveItem: (item: MenuItem) => Promise<void>;
+  onSaveItem: (item: MenuItem, isNew: boolean) => Promise<void>;
   onDeleteItem: (id: string) => void;
 }
 
@@ -30,10 +31,10 @@ export function MenuTable({
   const [formName, setFormName] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formPrice, setFormPrice] = useState('');
-  const [formCategory, setFormCategory] = useState<'food' | 'drinks' | 'cocktails' | 'beer' | 'soft-drinks'>('food');
-  const [formBadge, setFormBadge] = useState('');
+  const [formCategory, setFormCategory] = useState<Exclude<ItemCategory, 'all' | 'drinks'>>('food');
   const [formAvailable, setFormAvailable] = useState(true);
   const [formError, setFormError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const openAddModal = () => {
     setEditingItem(null);
@@ -41,7 +42,6 @@ export function MenuTable({
     setFormDesc('');
     setFormPrice('');
     setFormCategory('food');
-    setFormBadge('');
     setFormAvailable(true);
     setFormError(null);
     setIsModalOpen(true);
@@ -53,7 +53,6 @@ export function MenuTable({
     setFormDesc(item.description);
     setFormPrice(item.price.toString());
     setFormCategory(item.category);
-    setFormBadge(item.badge || '');
     setFormAvailable(item.available);
     setFormError(null);
     setIsModalOpen(true);
@@ -61,26 +60,36 @@ export function MenuTable({
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim() || !formPrice) return;
+    if (isSaving) return;
 
     const parsedPrice = parseFloat(formPrice);
-    if (isNaN(parsedPrice) || parsedPrice <= 0) return;
+    if (!formName.trim()) {
+      setFormError('Enter a name for the item.');
+      return;
+    }
+    if (isNaN(parsedPrice) || parsedPrice <= 0) {
+      setFormError('Enter a price above zero.');
+      return;
+    }
 
     const itemToSave: MenuItem = {
-      id: editingItem ? editingItem.id : `custom-${Date.now()}`,
+      id: editingItem ? editingItem.id : '',
       name: formName.trim(),
       description: formDesc.trim(),
       price: parsedPrice,
       category: formCategory,
-      badge: formBadge.trim() || undefined,
       available: formAvailable,
     };
 
+    setIsSaving(true);
+    setFormError(null);
     try {
-      await onSaveItem(itemToSave);
+      await onSaveItem(itemToSave, !editingItem);
       setIsModalOpen(false);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Unable to save this menu item.');
+      setFormError(describeApiError(error));
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -121,6 +130,9 @@ export function MenuTable({
             <option value="food">Food</option>
             <option value="beer">Beer</option>
             <option value="cocktails">Cocktails</option>
+            <option value="wine">Wine</option>
+            <option value="spirits">Spirits</option>
+            <option value="mocktails">Mocktails</option>
             <option value="soft-drinks">Soft Drinks</option>
           </select>
 
@@ -161,14 +173,7 @@ export function MenuTable({
                     {/* Item */}
                     <td className="py-3.5 px-4">
                       <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm text-white">{item.name}</span>
-                          {item.badge && (
-                            <span className="text-[10px] bg-star-gold/15 text-star-gold px-2 py-0.2 rounded-full font-bold">
-                              {item.badge}
-                            </span>
-                          )}
-                        </div>
+                        <span className="font-bold text-sm text-white">{item.name}</span>
                         <p className="text-[11px] text-star-muted line-clamp-1 max-w-sm mt-0.5">
                           {item.description}
                         </p>
@@ -194,6 +199,8 @@ export function MenuTable({
                       <button
                         type="button"
                         onClick={() => onToggleAvailability(item.id, !item.available)}
+                        aria-pressed={!item.available}
+                        title={item.available ? 'Tap to mark Sold Out' : 'Tap to make available again'}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold cursor-pointer transition-all ${
                           item.available
                             ? 'bg-green-500/15 text-star-green border border-green-500/30'
@@ -248,7 +255,7 @@ export function MenuTable({
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingItem ? 'Edit Menu Item' : 'Add New Menu Item'}
-        subtitle="Changes are immediately available to customers in this session"
+        subtitle="Guests see changes the next time their menu refreshes (within a minute)"
       >
         <form onSubmit={handleFormSubmit} className="space-y-4 pt-1">
           <Input
@@ -291,7 +298,7 @@ export function MenuTable({
                 value={formCategory}
                 onChange={(e) =>
                   setFormCategory(
-                    e.target.value as 'food' | 'drinks' | 'cocktails' | 'beer' | 'soft-drinks'
+                    e.target.value as Exclude<ItemCategory, 'all' | 'drinks'>
                   )
                 }
                 className="w-full bg-[#151515] border border-[#262626] text-white text-sm rounded-xl px-3 py-3 min-h-[46px] focus:outline-none focus:border-star-gold cursor-pointer"
@@ -299,17 +306,13 @@ export function MenuTable({
                 <option value="food">Food</option>
                 <option value="beer">Beer</option>
                 <option value="cocktails">Cocktails</option>
+                <option value="wine">Wine</option>
+                <option value="spirits">Spirits</option>
+                <option value="mocktails">Mocktails</option>
                 <option value="soft-drinks">Soft Drinks</option>
               </select>
             </div>
           </div>
-
-          <Input
-            label="Badge Tag (Optional)"
-            placeholder="e.g. Signature, Spicy, Cold, Popular"
-            value={formBadge}
-            onChange={(e) => setFormBadge(e.target.value)}
-          />
 
           <div className="flex items-center gap-3 pt-2">
             <input
@@ -337,7 +340,7 @@ export function MenuTable({
             >
               Cancel
             </Button>
-            <Button type="submit" variant="gold" size="md">
+            <Button type="submit" variant="gold" size="md" isLoading={isSaving}>
               {editingItem ? 'Save Changes' : 'Create Item'}
             </Button>
           </div>

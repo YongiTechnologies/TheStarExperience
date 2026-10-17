@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { Order, OrderStatusType } from '@/types';
 import { formatCurrency, getTimeAgo } from '@/lib/utils';
 import { TableBadge } from '@/components/customer/TableBadge';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Clock, User, Phone, Eye } from 'lucide-react';
+import { PaymentBadge } from './PaymentBadge';
+import { Clock, User, Phone, Eye, MessageSquare } from 'lucide-react';
 
 interface OrderCardProps {
   order: Order;
@@ -51,9 +51,7 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
             <span className="font-mono font-black text-white text-sm">
               #{order.id}
             </span>
-            <Badge variant="green" size="sm">
-              {order.paymentStatus}
-            </Badge>
+            <PaymentBadge order={order} />
           </div>
 
           <TableBadge tableNumber={order.tableNumber} size="sm" />
@@ -94,9 +92,10 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
         </div>
 
         {order.notes && (
-          <p className="text-[11px] text-amber-300/80 italic line-clamp-1 mb-2">
-            &ldquo;{order.notes}&rdquo;
-          </p>
+          <div className="mb-2 flex items-start gap-1.5 rounded-lg bg-star-gold/10 border border-star-gold/30 px-2.5 py-1.5 text-xs font-semibold text-star-gold">
+            <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span className="line-clamp-3">{order.notes}</span>
+          </div>
         )}
       </div>
 
