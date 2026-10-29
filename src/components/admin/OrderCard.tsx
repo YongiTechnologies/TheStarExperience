@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { Order, OrderStatusType } from '@/types';
 import { formatCurrency, getTimeAgo } from '@/lib/utils';
 import { TableBadge } from '@/components/customer/TableBadge';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { Clock, User, Phone, Eye } from 'lucide-react';
+import { PaymentBadge } from './PaymentBadge';
+import { Clock, User, Phone, Eye, MessageSquare, ConciergeBell } from 'lucide-react';
 
 interface OrderCardProps {
   order: Order;
@@ -19,7 +19,7 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
     switch (order.status) {
       case 'received':
         return {
-          label: 'ACCEPT ORDER',
+          label: 'START PREPARING',
           nextStatus: 'preparing' as OrderStatusType,
           variant: 'gold' as const,
         };
@@ -51,9 +51,7 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
             <span className="font-mono font-black text-white text-sm">
               #{order.id}
             </span>
-            <Badge variant="green" size="sm">
-              {order.paymentStatus}
-            </Badge>
+            <PaymentBadge order={order} />
           </div>
 
           <TableBadge tableNumber={order.tableNumber} size="sm" />
@@ -78,6 +76,8 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
           </div>
         )}
 
+        {order.status !== 'completed' && <ServiceStrip order={order} />}
+
         {/* Item List */}
         <div className="my-2 py-2 px-3 bg-[#111111] rounded-xl border border-[#222222] text-xs space-y-1">
           {order.items.map((item, idx) => (
@@ -94,9 +94,10 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
         </div>
 
         {order.notes && (
-          <p className="text-[11px] text-amber-300/80 italic line-clamp-1 mb-2">
-            &ldquo;{order.notes}&rdquo;
-          </p>
+          <div className="mb-2 flex items-start gap-1.5 rounded-lg bg-star-gold/10 border border-star-gold/30 px-2.5 py-1.5 text-xs font-semibold text-star-gold">
+            <MessageSquare className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+            <span className="line-clamp-3">{order.notes}</span>
+          </div>
         )}
       </div>
 
@@ -135,6 +136,30 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
           </Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+const STATION_TONE = {
+  queued: 'bg-white/5 text-zinc-400',
+  preparing: 'bg-star-gold/15 text-star-gold',
+  ready: 'bg-star-green/15 text-star-green',
+} as const;
+
+/** Who's serving the order and how far the kitchen and bar have got. */
+function ServiceStrip({ order }: { order: Order }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pb-2 text-[11px] font-semibold">
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${
+          !order.waiterName ? 'bg-star-red/15 text-star-red' : order.acceptedAt ? 'bg-white/5 text-zinc-200' : 'bg-star-gold/15 text-star-gold'
+        }`}
+      >
+        <ConciergeBell className="w-3 h-3" />
+        {!order.waiterName ? 'No waiter' : order.acceptedAt ? order.waiterName : `${order.waiterName} · not accepted`}
+      </span>
+      {order.kitchenStatus && <span className={`px-2 py-0.5 rounded-md ${STATION_TONE[order.kitchenStatus]}`}>Kitchen {order.kitchenStatus}</span>}
+      {order.barStatus && <span className={`px-2 py-0.5 rounded-md ${STATION_TONE[order.barStatus]}`}>Bar {order.barStatus}</span>}
     </div>
   );
 }

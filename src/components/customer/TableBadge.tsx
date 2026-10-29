@@ -36,11 +36,8 @@ export function TableBadge({
           <QrCode className={size === 'lg' ? 'w-5 h-5' : 'w-4 h-4'} />
         </span>
       )}
-      <span className="tracking-wider text-star-gold font-mono">
+      <span className="tracking-wider text-star-gold font-mono whitespace-nowrap">
         TABLE {tableNumber || '--'}
-      </span>
-      <span className="hidden sm:inline-block text-[11px] text-star-muted font-normal border-l border-[#333] pl-2">
-        The Republic Bar
       </span>
     </div>
   );

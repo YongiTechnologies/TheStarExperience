@@ -50,7 +50,10 @@ export function Modal({
 
       {/* Modal Dialog */}
       <div
-        className={`relative w-full ${maxWidthStyles[maxWidth]} bg-[#141414] border border-[#262626] sm:rounded-2xl rounded-t-2xl shadow-2xl p-6 z-10 max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150`}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className={`relative w-full ${maxWidthStyles[maxWidth]} bg-[#141414] border border-[#262626] sm:rounded-2xl rounded-t-2xl shadow-2xl p-6 z-10 max-h-[90vh] flex flex-col overflow-hidden animate-pop`}
       >
         <div className="flex items-start justify-between pb-4 border-b border-[#262626] shrink-0">
           <div>

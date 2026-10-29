@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Bell, PlusCircle, ExternalLink, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Bell, ExternalLink, ShieldCheck, Volume2, X } from 'lucide-react';
 import { useOrders } from '@/context/OrderContext';
-import { Button } from '@/components/ui/Button';
 
 export function AdminHeader() {
-  const { hasNewOrderAlert, dismissNewOrderAlert, simulateIncomingOrder } = useOrders();
+  const { hasNewOrderAlert, dismissNewOrderAlert, actionError, dismissActionError, soundEnabled, enableSound } = useOrders();
   const [time, setTime] = useState<string>('');
 
   useEffect(() => {
@@ -61,24 +60,25 @@ export function AdminHeader() {
             </button>
           )}
 
-          {/* Quick Demo Simulator */}
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={simulateIncomingOrder}
-            leftIcon={<PlusCircle className="w-3.5 h-3.5 text-star-gold" />}
-            className="text-xs"
-          >
-            Simulate Order
-          </Button>
+          {!soundEnabled && (
+            <button
+              type="button"
+              onClick={enableSound}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-star-gold bg-star-gold/10 border border-star-gold/40 rounded-xl cursor-pointer"
+              title="Browsers keep sound off until you tap the page"
+            >
+              <Volume2 className="w-3.5 h-3.5" />
+              <span>Enable new-order sound</span>
+            </button>
+          )}
 
-          {/* Customer view shortcut */}
+          {/* Guest menu preview (no table, so it can't place orders on a real table by accident) */}
           <Link
-            href="/order?table=12"
+            href="/order"
             target="_blank"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-zinc-300 hover:text-white bg-[#1A1A1A] hover:bg-[#252525] border border-[#2F2F2F] rounded-xl transition-colors font-medium"
           >
-            <span>Customer View (Table 12)</span>
+            <span>Guest menu</span>
             <ExternalLink className="w-3 h-3 text-star-gold" />
           </Link>
 
@@ -97,6 +97,16 @@ export function AdminHeader() {
           </div>
         </div>
       </div>
+
+      {actionError && (
+        <div className="mt-3 flex items-start gap-2 rounded-xl border border-star-red/40 bg-star-red/10 px-3 py-2 text-xs text-red-200" role="alert">
+          <AlertTriangle className="w-4 h-4 text-star-red shrink-0" />
+          <span className="flex-1">{actionError}</span>
+          <button type="button" onClick={dismissActionError} aria-label="Dismiss" className="text-red-200 hover:text-white cursor-pointer">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </header>
   );
 }

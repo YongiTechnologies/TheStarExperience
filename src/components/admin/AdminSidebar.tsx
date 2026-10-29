@@ -2,17 +2,34 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { LayoutDashboard, UtensilsCrossed, LogOut, ExternalLink, QrCode } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { ChefHat, GlassWater, LayoutDashboard, LayoutGrid, LogOut, Users, UtensilsCrossed } from 'lucide-react';
+import { clearAdminSession } from '@/lib/api';
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const signOut = () => {
+    clearAdminSession();
+    router.replace('/admin/login');
+  };
 
   const navItems = [
     {
       label: 'Live Orders Board',
       href: '/admin/dashboard',
       icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    {
+      label: 'Floor & Tables',
+      href: '/admin/floor',
+      icon: <LayoutGrid className="w-5 h-5" />,
+    },
+    {
+      label: 'Staff',
+      href: '/admin/staff',
+      icon: <Users className="w-5 h-5" />,
     },
     {
       label: 'Menu Management',
@@ -53,28 +70,31 @@ export function AdminSidebar() {
             );
           })}
         </nav>
+
+        <div className="px-3 hidden md:block">
+          <span className="text-[10px] uppercase font-bold tracking-widest text-star-muted block">
+            Station screens
+          </span>
+          <div className="mt-2 flex flex-col gap-1">
+            <Link href="/staff/kitchen" className="flex items-center gap-2 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white">
+              <ChefHat className="w-4 h-4 text-star-gold" /> Kitchen
+            </Link>
+            <Link href="/staff/bar" className="flex items-center gap-2 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white">
+              <GlassWater className="w-4 h-4 text-star-gold" /> Bar
+            </Link>
+          </div>
+        </div>
       </div>
 
-      <div className="hidden md:block pt-6 border-t border-[#222222] space-y-2">
-        <Link
-          href="/order?table=12"
-          target="_blank"
-          className="flex items-center justify-between px-3 py-2.5 rounded-xl text-xs text-zinc-400 hover:text-white hover:bg-[#1A1A1A] transition-colors"
-        >
-          <span className="flex items-center gap-2">
-            <QrCode className="w-4 h-4 text-star-gold" />
-            <span>Open Table 12 QR</span>
-          </span>
-          <ExternalLink className="w-3.5 h-3.5 text-zinc-500" />
-        </Link>
-
-        <Link
-          href="/admin/login"
-          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs text-star-red hover:bg-star-red/10 transition-colors font-semibold"
+      <div className="pt-4 md:pt-6 md:border-t border-[#222222]">
+        <button
+          type="button"
+          onClick={signOut}
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs text-star-red hover:bg-star-red/10 transition-colors font-semibold cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
-          <span>Exit / Sign Out</span>
-        </Link>
+          <span>Sign out</span>
+        </button>
       </div>
     </aside>
   );

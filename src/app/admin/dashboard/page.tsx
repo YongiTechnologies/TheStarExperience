@@ -11,27 +11,15 @@ import { Bell, Flame, PartyPopper, CheckCircle2, DollarSign } from 'lucide-react
 import { OrderStatusType } from '@/types';
 
 export default function AdminDashboardPage() {
+  // Orders arrive via OrderContext polling (every 10s), which also plays the new-order chime.
   const { orders, changeOrderStatus, hasNewOrderAlert } = useOrders();
-
-  // TODO: Connect bar dashboard to FastAPI WebSocket when backend is implemented.
-  // Example:
-  // useEffect(() => {
-  //   const ws = new WebSocket(`${WS_BASE_URL}/ws/admin/orders`);
-  //   ws.onmessage = (event) => {
-  //     const data = JSON.parse(event.data);
-  //     if (data.event === 'new_order') {
-  //       setOrders(prev => [data.order, ...prev]);
-  //       triggerAudioNotification();
-  //     }
-  //   };
-  //   return () => ws.close();
-  // }, []);
 
   const newOrdersCount = orders.filter((o) => o.status === 'received').length;
   const preparingCount = orders.filter((o) => o.status === 'preparing').length;
   const readyCount = orders.filter((o) => o.status === 'ready').length;
   const completedCount = orders.filter((o) => o.status === 'completed').length;
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+  // Value of everything ordered, not money collected (orders can be unpaid or demo payments).
+  const orderValue = orders.reduce((sum, o) => sum + (o.total || 0), 0);
 
   const handleStatusChange = async (orderId: string, newStatus: OrderStatusType) => {
     await changeOrderStatus(orderId, newStatus);
@@ -50,7 +38,7 @@ export default function AdminDashboardPage() {
         <main className="flex-1 p-4 sm:p-6 lg:p-8 space-y-6 overflow-x-hidden">
           {/* Active Notice Banner if new orders exist */}
           {hasNewOrderAlert && (
-            <div className="bg-star-gold/15 border border-star-gold/60 rounded-2xl p-4 gold-glow flex items-center justify-between gap-4 animate-in fade-in slide-in-from-top duration-300">
+            <div className="bg-star-gold/15 border border-star-gold/60 rounded-2xl p-4 gold-glow flex items-center justify-between gap-4 animate-rise">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-star-gold text-star-black font-black flex items-center justify-center shrink-0">
                   <Bell className="w-5 h-5 animate-spin" />
@@ -96,8 +84,8 @@ export default function AdminDashboardPage() {
               variant="neutral"
             />
             <StatCard
-              label="TOTAL SALES"
-              value={formatCurrency(totalRevenue)}
+              label="ORDER VALUE"
+              value={formatCurrency(orderValue)}
               icon={<DollarSign className="w-4 h-4" />}
               variant="gold"
             />

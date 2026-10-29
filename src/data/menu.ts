@@ -1,182 +1,91 @@
-import { MenuItem } from '@/types';
+/**
+ * Menu artwork (transparent cut-outs) mapped by item name. The menu itself
+ * comes from the backend (seed.py), so keys must match its item names. Items
+ * without artwork fall back to a category icon on the menu card.
+ */
+const FOOD = (name: string) => `/assets/menu/food-${name}.webp`;
+const DRINK = (name: string) => `/assets/menu/drink-${name}.webp`;
 
-export const INITIAL_MENU: MenuItem[] = [
-  // FOOD
-  {
-    id: 'food-001',
-    name: 'Ghanaian Jollof Rice',
-    description: 'Authentic firewood-smoked Ghanaian jollof rice served with spiced grilled chicken quarter and shito.',
-    price: 50,
-    category: 'food',
-    available: true,
-    badge: 'Chef Special',
-    prepTimeMinutes: 15,
-  },
-  {
-    id: 'food-002',
-    name: 'Republic Special Fried Rice',
-    description: 'Wok-tossed seasoned basmati rice with spring vegetables, egg ribbons, and charcoal grilled chicken.',
-    price: 50,
-    category: 'food',
-    available: true,
-    prepTimeMinutes: 15,
-  },
-  {
-    id: 'food-003',
-    name: 'Charcoal Grilled Chicken',
-    description: 'Succulent quarter chicken basted in roasted ginger, garlic, and wild Ghanaian chili rub.',
-    price: 45,
-    category: 'food',
-    available: true,
-    badge: 'Popular',
-    prepTimeMinutes: 20,
-  },
-  {
-    id: 'food-004',
-    name: 'Crispy Peppered Chicken Wings',
-    description: 'Crispy fried wings tossed in our signature smoky Scotch Bonnet honey glaze. 6 pieces.',
-    price: 50,
-    category: 'food',
-    available: true,
-    badge: 'Spicy',
-    prepTimeMinutes: 12,
-  },
-  {
-    id: 'food-005',
-    name: 'Golden French Fries',
-    description: 'Crispy seasoned double-fried potato fries served with spiced house aioli.',
-    price: 30,
-    category: 'food',
-    available: true,
-    prepTimeMinutes: 8,
-  },
-  {
-    id: 'food-006',
-    name: 'Spicy Kelewele',
-    description: 'Ripe plantain cubes seasoned with ground ginger, cayenne pepper, and cloves, fried golden brown.',
-    price: 35,
-    category: 'food',
-    available: true,
-    badge: 'Crowd Fav',
-    prepTimeMinutes: 10,
-  },
-  {
-    id: 'food-007',
-    name: 'Beef Suya Skewers',
-    description: 'Tender beef skewers crusted with Northern Ghanaian Yaji spice, served with sliced onions and fresh tomatoes.',
-    price: 55,
-    category: 'food',
-    available: true,
-    badge: 'Best Seller',
-    prepTimeMinutes: 14,
-  },
+export const MENU_IMAGE_BY_NAME: Record<string, string> = {
+  'Gogo Balls': FOOD('gogo-balls'),
+  'Yeye Goat': FOOD('yeye-goat'),
+  'Yeye Chicken': FOOD('yeye-chicken'),
+  'Chicken Call': FOOD('chicken-call'),
+  'Domedo Grilled': FOOD('domedo-grilled'),
+  'Calamari Squid': FOOD('calamari-squid'),
+  'Fried Veg Home Grown': FOOD('fried-veg-home-grown'),
+  'Virgin Green Revolution': FOOD('virgin-green-revolution'),
+  'Stir Fried Vegetables': FOOD('stir-fried-vegetables'),
+  'Egg Fried Rice (Brown Rice)': FOOD('egg-fried-rice'),
+  'Special Home Grown': FOOD('fried-veg-home-grown'),
+  'Green Revolution': FOOD('green-revolution-tuna'),
+  'Mixed Grilled Platter': FOOD('domedo-grilled'),
+  'Jollof Rice': FOOD('jollof-rice'),
+  'Yamrock': FOOD('yamrock'),
+  'Cassava Havana': FOOD('cassava-havana'),
+  'Kelewele': FOOD('kelewele'),
 
-  // BEER
-  {
-    id: 'beer-001',
-    name: 'Club Beer (Large)',
-    description: 'Chilled 625ml bottle of Ghana’s iconic lager. Crisp, golden, and refreshing.',
-    price: 25,
-    category: 'beer',
-    available: true,
-    badge: 'Cold',
-    prepTimeMinutes: 3,
-  },
-  {
-    id: 'beer-002',
-    name: 'Guinness Extra Stout',
-    description: 'Smooth, bold foreign extra stout with rich roasted barley notes. Served ice cold.',
-    price: 30,
-    category: 'beer',
-    available: true,
-    prepTimeMinutes: 3,
-  },
-  {
-    id: 'beer-003',
-    name: 'Stella Artois',
-    description: 'Crisp European premium pilsner lager served in an embossed glass.',
-    price: 35,
-    category: 'beer',
-    available: true,
-    prepTimeMinutes: 3,
-  },
+  'Kokoroko (House Favourite)': DRINK('kokoroko'),
+  'Passion Kokoroko': DRINK('passion-kokoroko'),
+  'Mint Kokoroko': DRINK('mint-kokoroko'),
+  'Frozen Harmattan': DRINK('frozen-harmattan'),
+  'Republica': DRINK('republica'),
+  'Kukuruntumi': DRINK('kukurantumi'),
+  'Woezor': DRINK('woezor'),
+  'Mojito': DRINK('mojito'),
 
-  // COCKTAILS
-  {
-    id: 'cocktail-001',
-    name: 'Classic Republic Mojito',
-    description: 'White rum, freshly crushed garden mint, zesty lime wedges, simple syrup, and sparkling club soda.',
-    price: 50,
-    category: 'cocktails',
-    available: true,
-    badge: 'Signature',
-    prepTimeMinutes: 5,
-  },
-  {
-    id: 'cocktail-002',
-    name: 'Accra Passion Fruit Cocktail',
-    description: 'Vodka infused with fresh Ghanaian passion fruit pulp, triple sec, citrus blend, and crushed ice.',
-    price: 55,
-    category: 'cocktails',
-    available: true,
-    badge: 'Popular',
-    prepTimeMinutes: 5,
-  },
-  {
-    id: 'cocktail-003',
-    name: 'The Star Experience Gold Mule',
-    description: 'Spiced dark rum, fresh fiery ginger beer, lime juice, dash of Angostura, dusted with edible gold glitter.',
-    price: 60,
-    category: 'cocktails',
-    available: true,
-    badge: 'VIP Pick',
-    prepTimeMinutes: 6,
-  },
-  {
-    id: 'cocktail-004',
-    name: 'Hibiscus "Sobolo" Rum Punch',
-    description: 'Local spiced hibiscus infusion mixed with dark Jamaican rum, pineapple juice, and cinnamon essence.',
-    price: 55,
-    category: 'cocktails',
-    available: true,
-    prepTimeMinutes: 5,
-  },
+  'Ghana': DRINK('ghana-slush'),
+  'Lyngwa': DRINK('lyngwa'),
+  'Lemonade Mocktail': DRINK('lemonade-mocktail'),
 
-  // SOFT DRINKS & WATER
-  {
-    id: 'soft-001',
-    name: 'Coca-Cola (Glass Bottle)',
-    description: 'Ice-cold classic 330ml Coca-Cola served with lime wedge.',
-    price: 15,
-    category: 'soft-drinks',
-    available: true,
-    prepTimeMinutes: 2,
-  },
-  {
-    id: 'soft-002',
-    name: 'Sprite (Glass Bottle)',
-    description: 'Refreshing lemon-lime crisp soda served chilled.',
-    price: 15,
-    category: 'soft-drinks',
-    available: true,
-    prepTimeMinutes: 2,
-  },
-  {
-    id: 'soft-003',
-    name: 'Fanta Orange',
-    description: 'Sweet and bubbly orange soda served over ice.',
-    price: 15,
-    category: 'soft-drinks',
-    available: true,
-    prepTimeMinutes: 2,
-  },
-  {
-    id: 'soft-004',
-    name: 'Bel-Aqua Natural Mineral Water',
-    description: 'Chilled 750ml still natural mineral spring water.',
-    price: 10,
-    category: 'soft-drinks',
-    available: true,
-    prepTimeMinutes: 1,
-  },
+  'House Red or White (Glass)': DRINK('wine-glasses'),
+  'House Red or White (Bottle)': DRINK('wine-glasses'),
+  'Palm Wine': DRINK('palm-wine'),
+
+  // Beer mixes share the "wild beers" artwork.
+  'Beer Sop': DRINK('wild-beers'),
+  'Ginger Beer': DRINK('wild-beers'),
+  'Sunshine Beer': DRINK('wild-beers'),
+  'Star / Club (Small)': DRINK('star-club-beer'),
+  'Star / Club (Large)': DRINK('star-club-beer'),
+  'Smirnoff Ice': DRINK('smirnoff-ice'),
+  'Guinness': DRINK('guinness'),
+  'Tale Beer': DRINK('tale-beer'),
+
+  'Hibiscus Juice (Bissap)': DRINK('natural-fruit-juices'),
+  'Pineapple Juice': DRINK('natural-fruit-juices'),
+  'Soursop Iced Tea': DRINK('natural-fruit-juices'),
+  'Orange Juice': DRINK('natural-fruit-juices'),
+  'House Lemonade': DRINK('lemonade-mocktail'),
+  'Coke': DRINK('water-and-sodas-cans'),
+  'Fanta': DRINK('water-and-sodas-cans'),
+  'Sprite': DRINK('water-and-sodas-cans'),
+  'Soda Water': DRINK('water-and-sodas-cans'),
+  'Water': DRINK('water-and-sodas-cans'),
+};
+
+/** Infused Akpeteshie: one shot photo, and a bottle per flavour. */
+const SPIRIT_SHOT_IMAGE = DRINK('infusion-spirit-shots');
+const SPIRIT_BOTTLE_BY_FLAVOUR: [string, string][] = [
+  ['Ginger', DRINK('infusion-bottle-ginger')],
+  ['Vanilla', DRINK('infusion-bottle-vanilla')],
+  ['Coffee-Cocoa', DRINK('infusion-bottle-coffee-cocoa')],
+  ['Coconut', DRINK('infusion-bottle-coconut')],
+  ['Passion', DRINK('infusion-bottle-passion')],
 ];
+const SPIRIT_BOTTLE_SET_IMAGE = DRINK('infusion-spirit-bottles-set');
+
+/** Resolve the artwork for an item name, covering the spirit variants. */
+export function getMenuImage(name: string): string | undefined {
+  if (MENU_IMAGE_BY_NAME[name]) return MENU_IMAGE_BY_NAME[name];
+  if (name.startsWith('Akpeteshie-Cane Spirit Shot')) return SPIRIT_SHOT_IMAGE;
+  if (name.startsWith('Akpeteshie Spirit Bottle')) {
+    // "(Coconut & Vanilla, 500 ml)" is the coconut bottle, so match the first flavour named.
+    const flavours = name.slice(name.indexOf('(') + 1);
+    const match = SPIRIT_BOTTLE_BY_FLAVOUR.map(([flavour, image]) => ({ at: flavours.indexOf(flavour), image }))
+      .filter(({ at }) => at >= 0)
+      .sort((a, b) => a.at - b.at)[0];
+    return match?.image ?? SPIRIT_BOTTLE_SET_IMAGE;
+  }
+  return undefined;
+}

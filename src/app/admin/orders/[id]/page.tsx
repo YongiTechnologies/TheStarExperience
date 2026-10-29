@@ -11,34 +11,45 @@ import { formatCurrency, formatDateTime } from '@/lib/utils';
 import { TableBadge } from '@/components/customer/TableBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { ArrowLeft, Printer, User, Phone, CheckCircle2, MessageSquare } from 'lucide-react';
+import { PaymentBadge, describePayment } from '@/components/admin/PaymentBadge';
+import { ArrowLeft, Printer, User, Phone, MessageSquare, ConciergeBell } from 'lucide-react';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { OrderTimeline } from '@/components/admin/OrderTimeline';
 
 export default function AdminOrderDetailPage() {
   const params = useParams();
-  const orderId = (params?.id as string) || '1042';
+  const orderId = String(params?.id ?? '');
 
-  const { orders, changeOrderStatus } = useOrders();
+  const { orders, ordersLoaded, changeOrderStatus } = useOrders();
 
-  const order: Order = orders.find((o) => o.id.toLowerCase() === orderId.toLowerCase()) || {
-    id: orderId,
-    tableNumber: 12,
-    customerName: 'Kofi Appiah',
-    phone: '0244123456',
-    items: [
-      { id: 'beer-001', name: 'Club Beer (Large)', price: 25, quantity: 2 },
-      { id: 'food-001', name: 'Ghanaian Jollof Rice', price: 50, quantity: 1 },
-      { id: 'food-004', name: 'Crispy Peppered Chicken Wings', price: 50, quantity: 1 },
-    ],
-    subtotal: 150,
-    total: 150,
-    status: 'preparing',
-    paymentStatus: 'paid',
-    paymentMethod: 'momo',
-    momoNetwork: 'mtn',
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    notes: 'Extra spicy shito on the side please',
-  };
+  const order: Order | undefined = orders.find((o) => o.id.toLowerCase() === orderId.toLowerCase());
+
+  // Never show staff a placeholder order: wait for the real list, or say it's missing.
+  if (!order) {
+    return (
+      <div className="min-h-screen bg-[#0A0A0A] text-white flex flex-col">
+        <AdminHeader />
+        <div className="flex-1 flex flex-col md:flex-row">
+          <AdminSidebar />
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-4xl">
+            {ordersLoaded ? (
+              <div className="py-16 text-center">
+                <h1 className="text-xl font-black">Order #{orderId} not found</h1>
+                <p className="text-sm text-star-muted mt-1">It may have been removed, or the link is wrong.</p>
+                <Link href="/admin/dashboard" className="inline-flex items-center gap-1.5 mt-5 text-sm text-star-gold font-bold">
+                  <ArrowLeft className="w-4 h-4" /> Back to Orders Board
+                </Link>
+              </div>
+            ) : (
+              <div className="py-24 flex justify-center">
+                <LoadingSpinner size="lg" text={`Loading order #${orderId}…`} />
+              </div>
+            )}
+          </main>
+        </div>
+      </div>
+    );
+  }
 
   const handleUpdateStatus = async (newStatus: OrderStatusType) => {
     await changeOrderStatus(order.id, newStatus);
@@ -127,23 +138,27 @@ export default function AdminOrderDetailPage() {
                     <span>{order.phone}</span>
                   </div>
                 )}
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <ConciergeBell className="w-3.5 h-3.5 text-star-gold" />
+                  <span>
+                    {order.waiterName
+                      ? `${order.waiterName}${order.acceptedAt ? '' : ' (not accepted yet)'}`
+                      : 'No waiter yet'}
+                  </span>
+                  <Link href="/admin/floor" className="text-star-gold font-semibold hover:underline print:hidden">
+                    Change
+                  </Link>
+                </div>
               </div>
 
               <div className="space-y-1.5 sm:border-l sm:border-[#282828] sm:pl-4">
                 <span className="text-[10px] font-bold uppercase tracking-wider text-star-muted block">
                   Payment Status
                 </span>
-                <div className="flex items-center gap-2 font-bold text-star-green text-sm">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span className="uppercase font-mono">{order.paymentStatus}</span>
-                  <span className="text-xs text-zinc-400 font-normal">
-                    via {order.paymentMethod.toUpperCase()}
-                    {order.momoNetwork ? ` (${order.momoNetwork.toUpperCase()})` : ''}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <PaymentBadge order={order} size="md" />
                 </div>
-                <p className="text-[11px] text-zinc-400">
-                  Verified for The Star Experience event
-                </p>
+                <p className="text-[11px] text-zinc-400">{describePayment(order).detail}</p>
               </div>
             </div>
 
@@ -195,7 +210,7 @@ export default function AdminOrderDetailPage() {
             <div className="pt-6 border-t border-[#242424] flex flex-col sm:flex-row sm:items-center justify-between gap-6">
               <div>
                 <span className="text-xs text-star-muted uppercase tracking-wider block font-semibold">
-                  Total Paid
+                  Order Total
                 </span>
                 <span className="text-3xl font-black font-mono text-star-gold tracking-tight">
                   {formatCurrency(order.total)}
@@ -235,6 +250,8 @@ export default function AdminOrderDetailPage() {
               </div>
             </div>
           </div>
+
+          <OrderTimeline order={order} />
         </main>
       </div>
     </div>
