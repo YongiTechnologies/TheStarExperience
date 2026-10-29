@@ -136,6 +136,22 @@ function OrderTracking() {
               )}
             </p>
 
+            {order.waiterName && order.status !== 'cancelled' && (
+              <div className="mt-6 flex items-center gap-3 rounded-2xl bg-ink-raised ring-1 ring-white/[0.06] px-4 py-3.5 animate-rise">
+                <span className="w-11 h-11 shrink-0 grid place-items-center rounded-full bg-star-gold text-ink font-display text-lg font-extrabold" aria-hidden>
+                  {order.waiterName.trim().charAt(0).toUpperCase()}
+                </span>
+                <p className="text-[14px] leading-snug">
+                  <span className="block font-semibold">
+                    {order.status === 'completed' ? `Served by ${order.waiterName}` : `${order.waiterName} is looking after your table`}
+                  </span>
+                  <span className="text-dust">
+                    {order.status === 'completed' ? 'Enjoy, and thanks for coming.' : 'Wave them over if you need anything.'}
+                  </span>
+                </p>
+              </div>
+            )}
+
             <section className="mt-8 rounded-3xl bg-ink-raised ring-1 ring-white/[0.06] overflow-hidden">
               <div className="px-5 pt-5 pb-4 flex items-start justify-between gap-4">
                 <div>

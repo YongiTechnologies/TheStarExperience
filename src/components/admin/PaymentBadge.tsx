@@ -19,9 +19,7 @@ export function describePayment(order: Order): PaymentSummary {
         ? order.momoNetwork
           ? MOMO_NETWORKS[order.momoNetwork].label
           : 'Mobile Money'
-        : order.paymentMethod === 'cash'
-          ? 'Cash'
-          : null;
+        : null;
 
   if (order.paymentStatus === 'paid' && order.paymentProvider === 'demo') {
     return { label: 'Demo', variant: 'blue', detail: `Demo checkout${method ? ` via ${method}` : ''} · no money collected` };

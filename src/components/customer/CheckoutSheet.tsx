@@ -29,6 +29,8 @@ type FieldErrors = Partial<Record<'name' | 'phone' | 'table' | 'momo', string>>;
 
 /** The backend stores up to 300 characters per note. */
 const NOTE_LIMIT = 300;
+/** And names up to 80 characters. */
+const NAME_LIMIT = 80;
 /** Common requests guests can add with one tap instead of typing. */
 const NOTE_PICKS = ['No ice', 'Less ice', 'Extra spicy', 'Not spicy', 'Extra glasses'];
 
@@ -399,6 +401,7 @@ export function CheckoutSheet({ onClose, tableNeedsConfirming }: CheckoutSheetPr
                               input={{
                                 value: name,
                                 onChange: (e) => setName(e.target.value),
+                                maxLength: NAME_LIMIT,
                                 autoComplete: 'name',
                                 autoCapitalize: 'words',
                                 placeholder: 'e.g. Ama Mensah',

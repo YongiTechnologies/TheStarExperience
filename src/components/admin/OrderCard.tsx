@@ -7,7 +7,7 @@ import { formatCurrency, getTimeAgo } from '@/lib/utils';
 import { TableBadge } from '@/components/customer/TableBadge';
 import { Button } from '@/components/ui/Button';
 import { PaymentBadge } from './PaymentBadge';
-import { Clock, User, Phone, Eye, MessageSquare } from 'lucide-react';
+import { Clock, User, Phone, Eye, MessageSquare, ConciergeBell } from 'lucide-react';
 
 interface OrderCardProps {
   order: Order;
@@ -19,7 +19,7 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
     switch (order.status) {
       case 'received':
         return {
-          label: 'ACCEPT ORDER',
+          label: 'START PREPARING',
           nextStatus: 'preparing' as OrderStatusType,
           variant: 'gold' as const,
         };
@@ -75,6 +75,8 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
             <span>{order.phone}</span>
           </div>
         )}
+
+        {order.status !== 'completed' && <ServiceStrip order={order} />}
 
         {/* Item List */}
         <div className="my-2 py-2 px-3 bg-[#111111] rounded-xl border border-[#222222] text-xs space-y-1">
@@ -134,6 +136,30 @@ export function OrderCard({ order, onStatusChange }: OrderCardProps) {
           </Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+const STATION_TONE = {
+  queued: 'bg-white/5 text-zinc-400',
+  preparing: 'bg-star-gold/15 text-star-gold',
+  ready: 'bg-star-green/15 text-star-green',
+} as const;
+
+/** Who's serving the order and how far the kitchen and bar have got. */
+function ServiceStrip({ order }: { order: Order }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 pb-2 text-[11px] font-semibold">
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${
+          !order.waiterName ? 'bg-star-red/15 text-star-red' : order.acceptedAt ? 'bg-white/5 text-zinc-200' : 'bg-star-gold/15 text-star-gold'
+        }`}
+      >
+        <ConciergeBell className="w-3 h-3" />
+        {!order.waiterName ? 'No waiter' : order.acceptedAt ? order.waiterName : `${order.waiterName} · not accepted`}
+      </span>
+      {order.kitchenStatus && <span className={`px-2 py-0.5 rounded-md ${STATION_TONE[order.kitchenStatus]}`}>Kitchen {order.kitchenStatus}</span>}
+      {order.barStatus && <span className={`px-2 py-0.5 rounded-md ${STATION_TONE[order.barStatus]}`}>Bar {order.barStatus}</span>}
     </div>
   );
 }

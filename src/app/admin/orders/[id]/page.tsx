@@ -12,8 +12,9 @@ import { TableBadge } from '@/components/customer/TableBadge';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { PaymentBadge, describePayment } from '@/components/admin/PaymentBadge';
-import { ArrowLeft, Printer, User, Phone, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Printer, User, Phone, MessageSquare, ConciergeBell } from 'lucide-react';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { OrderTimeline } from '@/components/admin/OrderTimeline';
 
 export default function AdminOrderDetailPage() {
   const params = useParams();
@@ -137,6 +138,17 @@ export default function AdminOrderDetailPage() {
                     <span>{order.phone}</span>
                   </div>
                 )}
+                <div className="flex items-center gap-2 text-zinc-300">
+                  <ConciergeBell className="w-3.5 h-3.5 text-star-gold" />
+                  <span>
+                    {order.waiterName
+                      ? `${order.waiterName}${order.acceptedAt ? '' : ' (not accepted yet)'}`
+                      : 'No waiter yet'}
+                  </span>
+                  <Link href="/admin/floor" className="text-star-gold font-semibold hover:underline print:hidden">
+                    Change
+                  </Link>
+                </div>
               </div>
 
               <div className="space-y-1.5 sm:border-l sm:border-[#282828] sm:pl-4">
@@ -238,6 +250,8 @@ export default function AdminOrderDetailPage() {
               </div>
             </div>
           </div>
+
+          <OrderTimeline order={order} />
         </main>
       </div>
     </div>

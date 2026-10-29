@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { LayoutDashboard, UtensilsCrossed, LogOut } from 'lucide-react';
+import { ChefHat, GlassWater, LayoutDashboard, LayoutGrid, LogOut, Users, UtensilsCrossed } from 'lucide-react';
 import { clearAdminSession } from '@/lib/api';
 
 export function AdminSidebar() {
@@ -20,6 +20,16 @@ export function AdminSidebar() {
       label: 'Live Orders Board',
       href: '/admin/dashboard',
       icon: <LayoutDashboard className="w-5 h-5" />,
+    },
+    {
+      label: 'Floor & Tables',
+      href: '/admin/floor',
+      icon: <LayoutGrid className="w-5 h-5" />,
+    },
+    {
+      label: 'Staff',
+      href: '/admin/staff',
+      icon: <Users className="w-5 h-5" />,
     },
     {
       label: 'Menu Management',
@@ -60,6 +70,20 @@ export function AdminSidebar() {
             );
           })}
         </nav>
+
+        <div className="px-3 hidden md:block">
+          <span className="text-[10px] uppercase font-bold tracking-widest text-star-muted block">
+            Station screens
+          </span>
+          <div className="mt-2 flex flex-col gap-1">
+            <Link href="/staff/kitchen" className="flex items-center gap-2 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white">
+              <ChefHat className="w-4 h-4 text-star-gold" /> Kitchen
+            </Link>
+            <Link href="/staff/bar" className="flex items-center gap-2 py-1.5 text-xs font-semibold text-zinc-400 hover:text-white">
+              <GlassWater className="w-4 h-4 text-star-gold" /> Bar
+            </Link>
+          </div>
+        </div>
       </div>
 
       <div className="pt-4 md:pt-6 md:border-t border-[#222222]">

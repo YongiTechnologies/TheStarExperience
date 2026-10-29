@@ -34,6 +34,9 @@ const STORAGE_CUSTOMER_KEY = 'star_experience_customer_info';
 const STORAGE_TABLE_KEY = 'star_experience_table_number';
 const STORAGE_NOTES_KEY = 'star_experience_order_notes';
 
+/** The backend accepts up to 50 of one item per order (MAX_QUANTITY_PER_LINE). */
+const MAX_QUANTITY_PER_LINE = 50;
+
 function getInitialStorage<T>(key: string, fallback: T): T {
   if (typeof window === 'undefined') return fallback;
   try {
@@ -115,8 +118,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setItems((prev) => {
       const exists = prev.some((ci) => ci.item.id === item.id);
       const updated: CartItem[] = exists
-        ? prev.map((ci) => (ci.item.id === item.id ? { ...ci, quantity: ci.quantity + quantity } : ci))
-        : [...prev, { item, quantity }];
+        ? prev.map((ci) =>
+            ci.item.id === item.id ? { ...ci, quantity: Math.min(ci.quantity + quantity, MAX_QUANTITY_PER_LINE) } : ci
+          )
+        : [...prev, { item, quantity: Math.min(quantity, MAX_QUANTITY_PER_LINE) }];
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_CART_KEY, JSON.stringify(updated));
       }
@@ -141,7 +146,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
     setItems((prev) => {
       const updated = prev.map((ci) =>
-        ci.item.id === itemId ? { ...ci, quantity } : ci
+        ci.item.id === itemId ? { ...ci, quantity: Math.min(quantity, MAX_QUANTITY_PER_LINE) } : ci
       );
       if (typeof window !== 'undefined') {
         localStorage.setItem(STORAGE_CART_KEY, JSON.stringify(updated));

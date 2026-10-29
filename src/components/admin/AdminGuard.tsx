@@ -2,7 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { SESSION_EXPIRED_EVENT, clearAdminSession, hasValidAdminSession } from '@/lib/api';
+import {
+  SESSION_EXPIRED_EVENT,
+  clearAdminSession,
+  getSession,
+  hasExpiredSession,
+  hasValidAdminSession,
+  hasValidSession,
+  homeForRole,
+} from '@/lib/api';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 const LOGIN_PATH = '/admin/login';
@@ -27,15 +35,32 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
       router.replace(reason === 'expired' ? `${LOGIN_PATH}?expired=1` : LOGIN_PATH);
     };
 
+    const session = getSession();
     if (hasValidAdminSession()) {
       void Promise.resolve().then(() => setAllowed(true));
+    } else if (session && hasValidSession()) {
+      // A waiter, cook or bartender who wandered in: back to their own screen, still signed in.
+      router.replace(homeForRole(session.role));
     } else {
       sendToLogin('signin');
     }
 
     const onExpired = () => sendToLogin('expired');
+    // Notice a token running out, or a sign-out in another tab, without waiting for a request to fail.
+    const recheck = () => {
+      if (hasValidAdminSession()) return;
+      const current = getSession();
+      if (current && hasValidSession()) router.replace(homeForRole(current.role));
+      else sendToLogin(hasExpiredSession() ? 'expired' : 'signin');
+    };
+    const timer = window.setInterval(recheck, 10000);
     window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
-    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    window.addEventListener('storage', recheck);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+      window.removeEventListener('storage', recheck);
+    };
   }, [isLoginPage, router]);
 
   if (isLoginPage) return <>{children}</>;

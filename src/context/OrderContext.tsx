@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 import { Order, OrderStatusType } from '@/types';
+import { playChime, unlockSound } from '@/lib/sound';
+import { useLiveUpdates } from '@/lib/useLiveUpdates';
 import {
   ApiError,
   SESSION_EXPIRED_EVENT,
@@ -13,7 +15,9 @@ import {
   updateOrderStatus,
 } from '@/lib/api';
 
+// Live updates push changes instantly; polling is the safety net (faster while disconnected).
 const POLL_INTERVAL_MS = 10000;
+const POLL_INTERVAL_LIVE_MS = 30000;
 
 interface OrderContextType {
   orders: Order[];
@@ -33,46 +37,6 @@ interface OrderContextType {
 }
 
 const OrderContext = createContext<OrderContextType | undefined>(undefined);
-
-// One shared AudioContext for the new-order chime. Browsers start it suspended
-// until the user interacts with the page, so it is resumed on the first tap.
-let chimeContext: AudioContext | null = null;
-
-function getChimeContext(): AudioContext | null {
-  if (typeof window === 'undefined') return null;
-  if (!chimeContext) {
-    const AudioContextClass =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof window.AudioContext }).webkitAudioContext;
-    if (!AudioContextClass) return null;
-    chimeContext = new AudioContextClass();
-  }
-  return chimeContext;
-}
-
-function playChimeSound() {
-  try {
-    const ctx = getChimeContext();
-    if (!ctx || ctx.state !== 'running') return;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
-
-    gain.gain.setValueAtTime(0.2, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.start();
-    osc.stop(ctx.currentTime + 0.6);
-  } catch (err) {
-    console.debug('Web Audio chime could not play automatically:', err);
-  }
-}
 
 function isStaffPage(pathname: string) {
   return pathname.startsWith('/admin') && pathname !== '/admin/login';
@@ -106,7 +70,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       const previous = knownOrderIds.current;
       if (previous && data.some((order) => !previous.has(order.id))) {
         setHasNewOrderAlert(true);
-        playChimeSound();
+        playChime();
       }
       knownOrderIds.current = new Set(data.map((order) => order.id));
       setOrders(data);
@@ -118,20 +82,24 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
+  // Coalesce bursts of live events (e.g. kitchen and bar finishing together) into one refresh.
+  const refreshTimer = useRef<number | undefined>(undefined);
+  const scheduleRefresh = useCallback(() => {
+    window.clearTimeout(refreshTimer.current);
+    refreshTimer.current = window.setTimeout(() => void refreshOrders(), 250);
+  }, [refreshOrders]);
+
+  const live = useLiveUpdates(scheduleRefresh, isStaffPage(pathname) && hasValidAdminSession());
+
   useEffect(() => {
     if (!isStaffPage(pathname)) return;
     void Promise.resolve().then(refreshOrders);
-    const refreshInterval = window.setInterval(() => void refreshOrders(), POLL_INTERVAL_MS);
+    const refreshInterval = window.setInterval(() => void refreshOrders(), live ? POLL_INTERVAL_LIVE_MS : POLL_INTERVAL_MS);
     return () => window.clearInterval(refreshInterval);
-  }, [pathname, refreshOrders]);
+  }, [pathname, refreshOrders, live]);
 
   const enableSound = useCallback(() => {
-    const ctx = getChimeContext();
-    if (!ctx) return;
-    ctx
-      .resume()
-      .then(() => setSoundEnabled(ctx.state === 'running'))
-      .catch(() => setSoundEnabled(false));
+    void unlockSound().then(setSoundEnabled);
   }, []);
 
   // Any tap or key press on a staff page unlocks the chime.
