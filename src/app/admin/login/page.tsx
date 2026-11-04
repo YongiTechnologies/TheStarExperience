@@ -48,7 +48,7 @@ function AdminLoginForm() {
       {/* Top Bar */}
       <header className="flex items-center justify-between py-2">
         <Link
-          href="/order"
+          href="/"
           className="flex items-center gap-2 text-xs text-star-muted hover:text-white transition-colors"
         >
           <span>← Guest menu</span>

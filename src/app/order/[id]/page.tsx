@@ -73,7 +73,7 @@ function OrderTracking() {
   }, [id, token, attempt]);
 
   const tableNumber = order ? String(order.tableNumber) : '';
-  const menuHref = tableNumber ? `/order?table=${encodeURIComponent(tableNumber)}` : '/order';
+  const menuHref = tableNumber ? `/?table=${encodeURIComponent(tableNumber)}` : '/';
 
   return (
     <div className="min-h-screen bg-ink text-cream">

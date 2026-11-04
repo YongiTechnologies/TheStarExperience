@@ -184,7 +184,7 @@ export function CheckoutSheet({ onClose, tableNeedsConfirming }: CheckoutSheetPr
         setCustomerInfo({ name: name.trim(), phone: contactPhone, tableNumber: resolvedTable });
         if (resolvedTable !== tableNumber) {
           // Keep the URL in step with the corrected table so the QR code's number can't override it.
-          router.replace(`/order?table=${encodeURIComponent(resolvedTable)}`, { scroll: false });
+          router.replace(`/?table=${encodeURIComponent(resolvedTable)}`, { scroll: false });
         }
         const orderLines = items.map((ci) => ({
           id: ci.item.id,

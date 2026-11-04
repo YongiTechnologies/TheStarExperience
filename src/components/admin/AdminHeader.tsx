@@ -74,7 +74,7 @@ export function AdminHeader() {
 
           {/* Guest menu preview (no table, so it can't place orders on a real table by accident) */}
           <Link
-            href="/order"
+            href="/"
             target="_blank"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-zinc-300 hover:text-white bg-[#1A1A1A] hover:bg-[#252525] border border-[#2F2F2F] rounded-xl transition-colors font-medium"
           >
